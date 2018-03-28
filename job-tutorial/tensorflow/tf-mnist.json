@@ -2,6 +2,10 @@
   "jobName": "tensorflow-example",
   "image": "pai.run.tensorflow",
 
+  "dataDir": "/home/ftp/username/tensorflow-example/data",
+  "outputDir": "/home/ftp/username/tensorflow-example/output",
+  "codeDir": "/home/ftp/username/tensorflow-example/code",
+
   "taskRoles": [
     {
       "name": "flowers-train",
