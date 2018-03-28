@@ -33,8 +33,11 @@ public class FrameworkDescriptor implements Serializable {
 
   @Valid
   @NotNull
-  // version change will trigger the whole Framework NonRolling Upgrade
   private Integer version;
+
+  @Valid
+  @NotNull
+  private ExecutionType executionType = ExecutionType.START;
 
   @Valid
   @NotNull
@@ -45,7 +48,7 @@ public class FrameworkDescriptor implements Serializable {
 
   @Valid
   @NotNull
-  private UserDescriptor user = new UserDescriptor();
+  private UserDescriptor user = UserDescriptor.newInstance();
 
   @Valid
   @NotEmpty
@@ -70,6 +73,14 @@ public class FrameworkDescriptor implements Serializable {
 
   public void setVersion(Integer version) {
     this.version = version;
+  }
+
+  public ExecutionType getExecutionType() {
+    return executionType;
+  }
+
+  public void setExecutionType(ExecutionType executionType) {
+    this.executionType = executionType;
   }
 
   public RetryPolicyDescriptor getRetryPolicy() {

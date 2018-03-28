@@ -18,6 +18,7 @@
 
 // module dependencies
 
+require('bootstrap/js/modal.js');
 require('datatables.net/js/jquery.dataTables.js');
 require('datatables.net-bs/js/dataTables.bootstrap.js');
 require('datatables.net-bs/css/dataTables.bootstrap.css');
@@ -25,22 +26,24 @@ require('datatables.net-plugins/sorting/natural.js');
 require('datatables.net-plugins/sorting/title-numeric.js');
 require('./job-view.component.scss');
 const url = require('url');
-const moment = require('moment/moment.js');
+// const moment = require('moment/moment.js');
 const breadcrumbComponent = require('../breadcrumb/breadcrumb.component.ejs');
 const loadingComponent = require('../loading/loading.component.ejs');
+const jobViewComponent = require('./job-view.component.ejs');
 const jobTableComponent = require('./job-table.component.ejs');
 const jobDetailTableComponent = require('./job-detail-table.component.ejs');
-const jobViewComponent = require('./job-view.component.ejs');
+const jobDetailSshInfoModalComponent = require('./job-detail-ssh-info-modal.component.ejs');
 const loading = require('../loading/loading.component');
 const webportalConfig = require('../../config/webportal.config.json');
 const userAuth = require('../../user/user-auth/user-auth.component');
 
 let table = null;
+let sshInfo = null;
 
 const jobViewHtml = jobViewComponent({
   breadcrumb: breadcrumbComponent,
   loading: loadingComponent,
-  jobTable: jobTableComponent
+  jobTable: jobTableComponent,
 });
 
 const getDurationInSeconds = (startTime, endTime) => {
@@ -50,21 +53,31 @@ const getDurationInSeconds = (startTime, endTime) => {
   if (endTime == null) {
     endTime = Date.now();
   }
-  return Math.round((endTime - startTime) / 1000);
-}
+  return Math.round(Math.max(0, endTime - startTime) / 1000);
+};
 
 const convertTime = (elapsed, startTime, endTime) => {
   if (startTime) {
     if (elapsed) {
       const elapsedTime = getDurationInSeconds(startTime, endTime);
-      return moment.duration(elapsedTime, "seconds").humanize();
-      /*
+      // TODO: find a better way to humanize elapsedTime.
+      // return moment.duration(elapsedTime, "seconds").humanize();
+      let result = '';
       const elapsedDay = parseInt(elapsedTime / (24 * 60 * 60));
+      if (elapsedDay > 0) {
+        result += elapsedDay + 'd ';
+      }
       const elapsedHour = parseInt((elapsedTime % (24 * 60 * 60)) / (60 * 60));
+      if (result != '' || (result == '' && elapsedHour > 0)) {
+        result += elapsedHour + 'h ';
+      }
       const elapsedMinute = parseInt(elapsedTime % (60 * 60) / 60);
+      if (result != '' || (result == '' && elapsedMinute > 0)) {
+        result += elapsedMinute + 'm ';
+      }
       const elapsedSecond = parseInt(elapsedTime % 60);
-      return `${elapsedDay} day ${elapsedHour} hour ${elapsedMinute} min ${elapsedSecond} sec`;
-      */
+      result += elapsedSecond + 's';
+      return result;
     } else {
       const startDate = new Date(startTime);
       return startDate.toLocaleString();
@@ -93,6 +106,10 @@ const convertState = (state) => {
     case 'SUCCEEDED':
       cls = 'label-success';
       stateText = 'Succeeded';
+      break;
+    case 'STOPPED':
+      cls = 'label-warning';
+      stateText = 'Stopped';
       break;
     case 'FAILED':
       cls = 'label-danger';
@@ -134,17 +151,17 @@ const loadJobs = () => {
           jobs: data,
           getDurationInSeconds,
           convertTime,
-          convertState
+          convertState,
         }));
-        table = $('#job-table').DataTable({
+        table = $('#job-table').dataTable({
           'scrollY': (($(window).height() - 265)) + 'px',
           'lengthMenu': [[20, 50, 100, -1], [20, 50, 100, 'All']],
-          "order": [[ 2, "desc" ]],
-          columnDefs: [
-            { type: 'natural', targets: [0, 1, 2, 4, 5] },
-            { type: 'title-numeric', targets: [3] }
-          ]
-        });
+          'order': [[2, 'desc']],
+          'columnDefs': [
+            {type: 'natural', targets: [0, 1, 4, 5]},
+            {type: 'title-numeric', targets: [2, 3]},
+          ],
+        }).api();
       }
       loading.hideLoading();
     },
@@ -152,19 +169,22 @@ const loadJobs = () => {
       const res = JSON.parse(xhr.responseText);
       alert(res.message);
       loading.hideLoading();
-    }
+    },
   });
 };
 
-const deleteJob = (jobName) => {
-  const res = confirm('Are you sure to delete the job?');
+const stopJob = (jobName) => {
+  const res = confirm('Are you sure to stop the job?');
   if (res) {
     userAuth.checkToken((token) => {
       $.ajax({
-        url: `${webportalConfig.restServerUri}/api/v1/jobs/${jobName}`,
-        type: 'DELETE',
+        url: `${webportalConfig.restServerUri}/api/v1/jobs/${jobName}/executionType`,
+        type: 'PUT',
+        data: {
+          value: 'STOP',
+        },
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         success: (data) => {
           loadJobs();
@@ -172,7 +192,7 @@ const deleteJob = (jobName) => {
         error: (xhr, textStatus, error) => {
           const res = JSON.parse(xhr.responseText);
           alert(res.message);
-        }
+        },
       });
     });
   }
@@ -180,6 +200,7 @@ const deleteJob = (jobName) => {
 
 const loadJobDetail = (jobName) => {
   loading.showLoading();
+  sshInfo = null;
   $.ajax({
     url: `${webportalConfig.restServerUri}/api/v1/jobs/${jobName}`,
     type: 'GET',
@@ -189,24 +210,65 @@ const loadJobDetail = (jobName) => {
         alert(data.message);
       } else {
         $('#view-table').html(jobDetailTableComponent({
+          jobName: data.name,
           jobStatus: data.jobStatus,
           taskRoles: data.taskRoles,
+          grafanaUri: webportalConfig.grafanaUri,
           convertTime,
           convertState,
-          convertGpu
+          convertGpu,
         }));
+        $('a[name^=sshInfoLink]').addClass('disabled');
+        if (data.jobStatus.state !== 'RUNNING') {
+          $('div[name^=sshInfoDiv]').attr('title', 'Job is not running.');
+        } else {
+          $.ajax({
+            url: `${webportalConfig.restServerUri}/api/v1/jobs/${jobName}/ssh`,
+            type: 'GET',
+            success: (data) => {
+              sshInfo = data;
+              $('a[name^=sshInfoLink]').removeClass('disabled');
+              $('div[name^=sshInfoDiv]').attr('title', '');
+            },
+            error: (xhr, textStatus, error) => {
+              const res = JSON.parse(xhr.responseText);
+              if (res.message === 'SshInfoNotFound') {
+                $('div[name^=sshInfoDiv]').attr('title', 'This job does not contain SSH info.');
+              }
+            },
+          });
+        }
       }
     },
     error: (xhr, textStatus, error) => {
       const res = JSON.parse(xhr.responseText);
       alert(res.message);
-    }
+    },
   });
 };
 
+const showSshInfo = (containerId) => {
+  if (sshInfo === null) {
+    return;
+  }
+  for (let x of sshInfo.containers) {
+    if (x.id === containerId) {
+      $('#sshInfoModalPlaceHolder').html(jobDetailSshInfoModalComponent({
+        'containerId': containerId,
+        'sshIp': x.sshIp,
+        'sshPort': x.sshPort,
+        'keyPair': sshInfo.keyPair,
+      }));
+      $('#sshInfoModal').modal('show');
+      break;
+    }
+  }
+};
+
 window.loadJobs = loadJobs;
-window.deleteJob = deleteJob;
+window.stopJob = stopJob;
 window.loadJobDetail = loadJobDetail;
+window.showSshInfo = showSshInfo;
 
 const resizeContentWrapper = () => {
   $('#content-wrapper').css({'height': $(window).height() + 'px'});
@@ -214,14 +276,14 @@ const resizeContentWrapper = () => {
     $('.dataTables_scrollBody').css('height', (($(window).height() - 265)) + 'px');
     table.columns.adjust().draw();
   }
-}
+};
 
 $('#content-wrapper').html(jobViewHtml);
 
 $(document).ready(() => {
-  window.onresize = function (envent) {
+  window.onresize = function(envent) {
     resizeContentWrapper();
-  }
+  };
   resizeContentWrapper();
   $('#sidebar-menu--job-view').addClass('active');
   const query = url.parse(window.location.href, true).query;
@@ -234,4 +296,4 @@ $(document).ready(() => {
   }
 });
 
-module.exports = { loadJobs, deleteJob, loadJobDetail }
+module.exports = {loadJobs, stopJob, loadJobDetail};

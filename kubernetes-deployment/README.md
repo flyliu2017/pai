@@ -121,6 +121,10 @@ proxymachinelist:
 
 ```
 
+## Cluster maintenance
+
+Please refer to this [wiki](https://github.com/Microsoft/pai/wiki/Cluster-Maintenance)
+
 ## Prepare your dev-box environment
 
 
@@ -130,6 +134,7 @@ Make sure your dev box has full network access to the cluster.
 Python(2.x) and lib install:
 ```yaml
 sudo apt-get install python python-paramiko python-yaml python-jinja2
+sudo pip install python-etcd kubernetes
 ```
 
 Note: kubectl will be installed on this dev-box. So it can access to your kubernetes cluster.
@@ -187,3 +192,10 @@ sudo ./bootstrap.py -p yourclusterconfig.yaml -f yournodelist.yaml -a remove
 ```bash
 sudo ./bootstrap.py -p yourclusterconfig.yaml -f yournodelist.yaml -a repair
 ```
+
+
+## Repair the crashed etcd node (kubernetes failed to restart it) 
+```bash
+sudo ./bootstrap.py -p yourclusterconfig.yaml -f yournodelist.yaml -a etcdfix
+```
+

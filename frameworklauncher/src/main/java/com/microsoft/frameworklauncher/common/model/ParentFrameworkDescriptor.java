@@ -18,7 +18,6 @@
 package com.microsoft.frameworklauncher.common.model;
 
 import com.microsoft.frameworklauncher.common.validation.CommonValidation;
-import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -27,13 +26,17 @@ import java.io.Serializable;
 
 public class ParentFrameworkDescriptor implements Serializable {
   @Valid
-  @NotEmpty
+  @NotNull
   @Pattern(regexp = CommonValidation.NAMING_CONVENTION_REGEX_STR)
   private String parentFrameworkName;
 
   @Valid
   @NotNull
   private boolean deleteOnParentDeleted = false;
+
+  @Valid
+  @NotNull
+  private boolean stopOnParentStopped = false;
 
   public String getParentFrameworkName() {
     return parentFrameworkName;
@@ -43,11 +46,19 @@ public class ParentFrameworkDescriptor implements Serializable {
     this.parentFrameworkName = parentFrameworkName;
   }
 
+  public boolean isDeleteOnParentDeleted() {
+    return deleteOnParentDeleted;
+  }
+
   public void setDeleteOnParentDeleted(boolean deleteOnParentDeleted) {
     this.deleteOnParentDeleted = deleteOnParentDeleted;
   }
 
-  public boolean isDeleteOnParentDeleted() {
-    return deleteOnParentDeleted;
+  public boolean isStopOnParentStopped() {
+    return stopOnParentStopped;
+  }
+
+  public void setStopOnParentStopped(boolean stopOnParentStopped) {
+    this.stopOnParentStopped = stopOnParentStopped;
   }
 }

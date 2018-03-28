@@ -37,8 +37,9 @@ public class LauncherClient {
   private final int maxRetryCount;
   private final int retryIntervalSec;
 
-  public LauncherClient(String launcherAddress, int maxRetryCount, int retryIntervalSec, LaunchClientType launchClientType) {
-    this.webClient = new WebClient(launcherAddress, launchClientType.toString());
+  public LauncherClient(String launcherAddress, int maxRetryCount, int retryIntervalSec,
+      LaunchClientType launchClientType, String userName) {
+    this.webClient = new WebClient(launcherAddress, launchClientType, userName);
     this.maxRetryCount = maxRetryCount;
     this.retryIntervalSec = retryIntervalSec;
   }
@@ -93,6 +94,17 @@ public class LauncherClient {
           WebStructure.getTaskNumberPath(frameworkName, taskRoleName),
           ContentType.APPLICATION_JSON,
           WebCommon.toJson(updateTaskNumberRequest));
+    });
+  }
+
+  public void putExecutionType(String frameworkName, UpdateExecutionTypeRequest updateExecutionTypeRequest) throws Exception {
+    executeWithRetry(() -> {
+      CommonValidation.validate(frameworkName);
+      CommonValidation.validate(updateExecutionTypeRequest);
+      return webClient.put(
+          WebStructure.getExecutionTypePath(frameworkName),
+          ContentType.APPLICATION_JSON,
+          WebCommon.toJson(updateExecutionTypeRequest));
     });
   }
 
@@ -181,6 +193,16 @@ public class LauncherClient {
           WebStructure.CLUSTER_CONFIGURATION_PATH,
           ContentType.APPLICATION_JSON,
           WebCommon.toJson(clusterConfiguration));
+    });
+  }
+
+  public void putAclConfiguration(AclConfiguration aclConfiguration) throws Exception {
+    executeWithRetry(() -> {
+      CommonValidation.validate(aclConfiguration);
+      return webClient.put(
+          WebStructure.ACL_CONFIGURATION_PATH,
+          ContentType.APPLICATION_JSON,
+          WebCommon.toJson(aclConfiguration));
     });
   }
 

@@ -21,29 +21,16 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
-// Represent Integer values in Closed Range [begin, end]
-public class Range implements Serializable {
+public class UpdateExecutionTypeRequest implements Serializable {
   @Valid
   @NotNull
-  private Integer begin;
+  private ExecutionType executionType;
 
-  @Valid
-  @NotNull
-  private Integer end;
-
-  public Integer getBegin() {
-    return begin;
+  public ExecutionType getExecutionType() {
+    return executionType;
   }
 
-  public void setBegin(Integer begin) {
-    this.begin = begin;
-  }
-
-  public Integer getEnd() {
-    return end;
-  }
-
-  public void setEnd(Integer end) {
-    this.end = end;
+  public void setExecutionType(ExecutionType executionType) {
+    this.executionType = executionType;
   }
 }
